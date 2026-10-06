@@ -89,6 +89,28 @@ button, input { font: inherit; }
 .app-header strong { margin-top: 2px; color: #4d372e; font-family: "Songti SC", serif; font-size: 18px; }
 .header-actions { display: flex; align-items: center; gap: 8px; color: #86756b; font-size: 11px; }
 .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: #c9693f; }
+.app-banners { display: grid; gap: 8px; padding: 10px 24px 0; background: #f3eee8; }
+.banner {
+  display: flex; align-items: center; gap: 10px; padding: 9px 13px;
+  border-radius: 8px; font-size: 11px;
+}
+.banner > i { font-size: 14px; }
+.banner span { flex: 1; color: #5c463c; }
+.banner--info { border: 1px solid #cfe0dd; background: #f0f7f6; }
+.banner--info > i { color: #4a7f86; }
+.banner--warn { border: 1px solid #f0d9a8; background: #fdf8ec; }
+.banner--warn > i { color: #b98629; }
+.quarantine-lead { margin: 0 0 12px; color: #7a665c; font-size: 11px; line-height: 1.7; }
+.quarantine-list { display: grid; gap: 9px; max-height: 420px; overflow: auto; }
+.quarantine-item { display: grid; gap: 6px; padding: 11px 13px; border: 1px solid #ecd9cf; border-radius: 8px; background: #fdf8f5; }
+.quarantine-item__top { display: flex; align-items: center; gap: 9px; }
+.quarantine-item__top strong { color: #554037; font-size: 11px; }
+.quarantine-item__top span { margin-left: auto; color: #9b887e; font-size: 9px; }
+.quarantine-item p { margin: 0; color: #8a6a52; font-size: 10px; }
+.quarantine-item code {
+  padding: 7px 9px; border-radius: 6px; background: #f5eeea; color: #8a766c;
+  font-family: Menlo, monospace; font-size: 9px; word-break: break-all;
+}
 .app-content { min-height: 0; flex: 1; overflow: auto; padding: 20px 24px 36px; background: #f3eee8; }
 
 .page-stack { display: grid; gap: 16px; }
@@ -167,6 +189,14 @@ button, input { font: inherit; }
 .import-box strong { color: #5c4034; font-size: 12px; }
 .import-box span { margin-top: 3px; color: #997f73; font-size: 9px; }
 .import-message { margin: 10px 16px 0; padding: 9px 11px; border-radius: 6px; background: #eef5f2; color: #4f7669; font-size: 10px; }
+.import-message--error { background: #fdeee9; color: #b14733; }
+.bad-rows { display: grid; gap: 3px; margin: 10px 16px 0; padding: 9px 11px; border: 1px solid #f0d9a8; border-radius: 6px; background: #fdf8ec; }
+.bad-rows strong { display: flex; align-items: center; gap: 6px; color: #8a6414; font-size: 10px; }
+.bad-rows span { color: #8a7a52; font-size: 9px; line-height: 1.6; }
+.backup-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 10px 16px 0; padding: 9px 11px; border: 1px solid #cfe0dd; border-radius: 6px; background: #f0f7f6; }
+.backup-bar strong, .backup-bar span { display: block; }
+.backup-bar strong { color: #365f64; font-size: 10px; }
+.backup-bar span { margin-top: 2px; color: #6f8a8d; font-size: 9px; }
 .sample-summary { display: flex; align-items: center; justify-content: space-between; margin: 15px 16px 0; padding-top: 14px; border-top: 1px solid #eee7e2; color: #8c776c; font-size: 10px; }
 .sample-summary strong { color: #554037; font-size: 11px; }
 .hidden-input { display: none; }

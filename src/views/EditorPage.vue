@@ -10,20 +10,25 @@ import CurveChart from '../components/CurveChart.vue'
 import StagePanel from '../components/StagePanel.vue'
 import RiskSummary from '../components/RiskSummary.vue'
 import DeviationPanel from '../components/DeviationPanel.vue'
-import { buildStages, calculateDeviation } from '../utils/curve'
+import ReviewPanel from '../components/ReviewPanel.vue'
+import { buildStages } from '../utils/curve'
 
 const store = useFiringStore()
-const { activeSession, selectedPointId, selectedStageIndex, validationIssues, canUndo, canRedo } = storeToRefs(store)
+const {
+  activeSession,
+  selectedPointId,
+  selectedStageIndex,
+  canUndo,
+  canRedo,
+  activeReview,
+  viewingLatest,
+  activeReviewStale,
+  displayedIssues,
+  displayedDeviation,
+} = storeToRefs(store)
 const templateOpen = ref(false)
 const templateName = ref('')
 const stages = computed(() => buildStages(activeSession.value.points))
-const deviation = computed(() =>
-  calculateDeviation(
-    activeSession.value.points,
-    activeSession.value.actualSamples,
-    activeSession.value.timeOffsetMin,
-  ),
-)
 const sessionOptions = computed(() =>
   store.sessions.map((session) => ({ label: session.name, value: session.id })),
 )
@@ -97,7 +102,7 @@ function saveTemplate() {
       <aside class="side-panel">
         <StagePanel
           :stages="stages"
-          :issues="validationIssues"
+          :issues="displayedIssues"
           :selected-index="selectedStageIndex"
           @select="selectedStageIndex = $event"
           @update="updateSelectedStage"
@@ -106,16 +111,29 @@ function saveTemplate() {
       </aside>
     </section>
 
+    <section class="detail-card review-card">
+      <ReviewPanel
+        :session="activeSession"
+        :stale-items="activeReviewStale"
+        :viewing-review="activeReview"
+        :is-viewing-latest="viewingLatest"
+        :issues="displayedIssues"
+        :deviation="displayedDeviation"
+        @publish="store.publishReview"
+        @view="store.setActiveReview"
+      />
+    </section>
+
     <section class="lower-grid">
       <article class="detail-card">
         <DeviationPanel
-          :summary="deviation"
+          :summary="displayedDeviation"
           :offset-min="activeSession.timeOffsetMin"
           @update-offset="store.setTimeOffset"
         />
       </article>
       <article class="detail-card">
-        <RiskSummary :issues="validationIssues" />
+        <RiskSummary :issues="displayedIssues" />
       </article>
     </section>
 

@@ -2,9 +2,11 @@ import type {
   CurveTemplate,
   DeviationSummary,
   FiringPoint,
+  FiringReview,
   FiringSample,
   FiringStage,
   KilnSession,
+  ReviewStaleKey,
   RiskIssue,
 } from '../types/firing'
 
@@ -193,4 +195,84 @@ export function sessionDomain(sessions: KilnSession[]) {
     maxTime: Math.max(480, ...points.map((point) => point.timeMin), ...samples.map((sample) => sample.timeMin)) * 1.04,
     maxTemp: Math.max(1300, ...points.map((point) => point.tempC), ...samples.map((sample) => sample.tempC)) * 1.04,
   }
+}
+
+export function latestReview(session: KilnSession): FiringReview | null {
+  const list = session.reviews ?? []
+  if (!list.length) return null
+  return list.reduce((best, review) => (review.version > best.version ? review : best), list[0])
+}
+
+export function nextReviewVersion(session: KilnSession): number {
+  return (session.reviews ?? []).reduce((max, review) => Math.max(max, review.version), 0) + 1
+}
+
+export function createReview(
+  session: KilnSession,
+  version: number,
+  note = '',
+  origin: FiringReview['origin'] = 'manual',
+): FiringReview {
+  return {
+    id: `review-${session.id}-v${version}-${crypto.randomUUID().slice(0, 8)}`,
+    version,
+    publishedAt: new Date().toISOString(),
+    note: note.trim(),
+    origin,
+    snapshot: {
+      points: session.points.map((point) => ({ ...point })),
+      timeOffsetMin: session.timeOffsetMin,
+      actualSamples: session.actualSamples.map((sample) => ({ ...sample })),
+    },
+    riskIssues: validateCurve(session),
+    deviation: calculateDeviation(session.points, session.actualSamples, session.timeOffsetMin),
+  }
+}
+
+export interface StaleItem {
+  key: ReviewStaleKey
+  label: string
+}
+
+function samePointSeries(left: FiringPoint[], right: FiringPoint[]): boolean {
+  if (left.length !== right.length) return false
+  const sortedLeft = sortPoints(left)
+  const sortedRight = sortPoints(right)
+  return sortedLeft.every((point, index) => {
+    const other = sortedRight[index]
+    return point.timeMin === other.timeMin && point.tempC === other.tempC
+  })
+}
+
+function sameSampleSeries(left: FiringSample[], right: FiringSample[]): boolean {
+  if (left.length !== right.length) return false
+  return left.every((sample, index) => {
+    const other = right[index]
+    return sample.timeMin === other.timeMin && sample.tempC === other.tempC
+  })
+}
+
+export function reviewStaleItems(session: KilnSession, review: FiringReview | null): StaleItem[] {
+  if (!review) return []
+  const items: StaleItem[] = []
+  const snapshot = review.snapshot
+  if (!samePointSeries(snapshot.points, session.points)) {
+    items.push({
+      key: 'curve',
+      label: `目标曲线已变更（关键点 ${snapshot.points.length} → ${session.points.length} 个）`,
+    })
+  }
+  if (snapshot.timeOffsetMin !== session.timeOffsetMin) {
+    items.push({
+      key: 'offset',
+      label: `时间偏移已变更（${snapshot.timeOffsetMin} → ${session.timeOffsetMin} min）`,
+    })
+  }
+  if (!sameSampleSeries(snapshot.actualSamples, session.actualSamples)) {
+    items.push({
+      key: 'samples',
+      label: `实测采样已变更（${snapshot.actualSamples.length} → ${session.actualSamples.length} 点）`,
+    })
+  }
+  return items
 }

@@ -6,12 +6,14 @@ import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import { useFiringStore } from '../stores/firingStore'
-import { parseTemperatureCsv } from '../utils/csv'
+import { parseTemperatureCsv, type BadRow } from '../utils/csv'
 
 const store = useFiringStore()
-const { activeSession } = storeToRefs(store)
+const { activeSession, lastImportBadRows } = storeToRefs(store)
 const fileInput = ref<HTMLInputElement>()
 const importMessage = ref('')
+const importError = ref('')
+const lastImportCount = ref(0)
 
 function openFile() {
   fileInput.value?.click()
@@ -20,14 +22,40 @@ function openFile() {
 async function importCsv(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0]
   if (!file) return
-  const samples = parseTemperatureCsv(await file.text())
-  if (!samples.length) {
-    importMessage.value = '未解析到有效记录，请确认 CSV 包含 time,temp 两列。'
+  importError.value = ''
+  importMessage.value = ''
+  let content: string
+  try {
+    content = await file.text()
+  } catch (error) {
+    importError.value = `记录仪文件读取失败，已保留原数据：${error instanceof Error ? error.message : '未知错误'}`
+    ;(event.target as HTMLInputElement).value = ''
+    return
+  }
+  let parsed: ReturnType<typeof parseTemperatureCsv>
+  try {
+    parsed = parseTemperatureCsv(content)
+  } catch (error) {
+    importError.value = `记录仪文件解析异常，已保留原数据：${error instanceof Error ? error.message : '未知错误'}`
+    ;(event.target as HTMLInputElement).value = ''
+    return
+  }
+  if (!parsed.samples.length) {
+    importError.value = `未解析到有效记录，原有 ${activeSession.value.actualSamples.length} 点实测数据已保留。请确认 CSV 包含 time,temp 两列。`
+    store.lastImportBadRows.length = 0
   } else {
-    store.importSamples(samples)
-    importMessage.value = `已导入 ${samples.length} 个温度采样点。`
+    store.importSamples(parsed.samples, parsed.badRows)
+    lastImportCount.value = parsed.samples.length
+    const quarantined = parsed.badRows.length
+      ? `；${parsed.badRows.length} 行坏记录已隔离，可在下方查看`
+      : ''
+    importMessage.value = `已导入 ${parsed.samples.length} 个温度采样点${quarantined}。`
   }
   ;(event.target as HTMLInputElement).value = ''
+}
+
+function badRowsSummary(rows: BadRow[]) {
+  return rows.slice(0, 5).map((row) => `第 ${row.line} 行：${row.reason}`).join('；')
 }
 </script>
 
@@ -97,12 +125,24 @@ async function importCsv(event: Event) {
           <div class="import-icon"><i class="pi pi-file-import" /></div>
           <div>
             <strong>导入记录仪 CSV</strong>
-            <span>支持 time,temp 或 时间,温度 表头；时间单位可为分钟或 hh:mm:ss。</span>
+            <span>支持 time,temp 或 时间,温度 表头；时间单位可为分钟或 hh:mm:ss。异常行自动隔离，原数据保留可恢复。</span>
           </div>
           <Button label="选择文件" icon="pi pi-upload" outlined @click="openFile" />
           <Button v-if="activeSession.actualSamples.length" label="清除实测" severity="danger" text @click="store.clearActualSamples" />
         </div>
         <p v-if="importMessage" class="import-message">{{ importMessage }}</p>
+        <p v-if="importError" class="import-message import-message--error">{{ importError }}</p>
+        <div v-if="lastImportBadRows.length" class="bad-rows">
+          <strong><i class="pi pi-exclamation-triangle" /> 坏记录已隔离（{{ lastImportBadRows.length }} 行，未写入实测数据）</strong>
+          <span>{{ badRowsSummary(lastImportBadRows) }}<template v-if="lastImportBadRows.length > 5"> 等</template></span>
+        </div>
+        <div v-if="activeSession.sampleBackup?.samples.length" class="backup-bar">
+          <div>
+            <strong>导入前数据可恢复</strong>
+            <span>{{ activeSession.sampleBackup.samples.length }} 点 · 保存于 {{ new Date(activeSession.sampleBackup.savedAt).toLocaleString('zh-CN', { hour12: false }) }}</span>
+          </div>
+          <Button label="恢复导入前数据" icon="pi pi-undo" outlined size="small" @click="store.restoreSampleBackup" />
+        </div>
 
         <div class="sample-summary">
           <strong>当前实测数据</strong>

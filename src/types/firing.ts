@@ -34,6 +34,31 @@ export interface CurveTemplate {
   updatedAt: string
 }
 
+export type ReviewStaleKey = 'curve' | 'offset' | 'samples'
+
+export interface ReviewSnapshot {
+  points: FiringPoint[]
+  timeOffsetMin: number
+  actualSamples: FiringSample[]
+}
+
+export interface FiringReview {
+  id: string
+  version: number
+  publishedAt: string
+  note: string
+  /** migration = 升级前补录的复核，manual = 发布时冻结的复核 */
+  origin: 'manual' | 'migration'
+  snapshot: ReviewSnapshot
+  riskIssues: RiskIssue[]
+  deviation: DeviationSummary
+}
+
+export interface SampleBackup {
+  samples: FiringSample[]
+  savedAt: string
+}
+
 export interface KilnSession {
   id: string
   name: string
@@ -45,6 +70,16 @@ export interface KilnSession {
   timeOffsetMin: number
   points: FiringPoint[]
   actualSamples: FiringSample[]
+  reviews: FiringReview[]
+  sampleBackup: SampleBackup | null
+}
+
+export interface QuarantinedRecord {
+  id: string
+  kind: 'session' | 'template'
+  reason: string
+  foundAt: string
+  raw: unknown
 }
 
 export interface RiskIssue {

@@ -179,6 +179,8 @@ export function createMockSessions(): KilnSession[] {
       timeOffsetMin: definition.offset,
       points: sessionPoints,
       actualSamples: createActualSamples(sessionPoints, index + 3),
+      reviews: [],
+      sampleBackup: null,
     }
   })
 }
