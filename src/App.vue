@@ -1,11 +1,18 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import Button from 'primevue/button'
+import { storeToRefs } from 'pinia'
 import Tag from 'primevue/tag'
+import {
+  STORAGE_KEY,
+} from './utils/persistence'
+import { useFiringStore } from './stores/firingStore'
+import ConflictBanner from './components/ConflictBanner.vue'
 
 const route = useRoute()
 const router = useRouter()
+const store = useFiringStore()
+const { conflictNotices } = storeToRefs(store)
 const navItems = [
   { path: '/editor', label: '曲线编辑', icon: 'pi pi-chart-line' },
   { path: '/compare', label: '窑次对比', icon: 'pi pi-chart-scatter' },
@@ -14,6 +21,16 @@ const navItems = [
 ]
 const activePath = computed(() => navItems.find((item) => route.path.startsWith(item.path))?.path ?? '/editor')
 const activeLabel = computed(() => navItems.find((item) => item.path === activePath.value)?.label ?? '曲线编辑')
+
+function onStorage(event: StorageEvent) {
+  // 只关心共享业务数据（存储被整体清空时 key 为 null 也同步一次）；
+  // 标签页自身偏好存于 sessionStorage，不会互相干扰
+  if (event.key && event.key !== STORAGE_KEY) return
+  store.handleStorageEvent()
+}
+
+onMounted(() => window.addEventListener('storage', onStorage))
+onBeforeUnmount(() => window.removeEventListener('storage', onStorage))
 </script>
 
 <template>
@@ -59,10 +76,11 @@ const activeLabel = computed(() => navItems.find((item) => item.path === activeP
         </div>
         <div class="header-actions">
           <span class="sync-dot" />
-          <span>目标曲线与记录仪数据自动保存</span>
+          <span>目标曲线与记录仪数据自动保存 · {{ store.clientLabel }}</span>
         </div>
       </header>
       <main class="app-content">
+        <ConflictBanner :notices="conflictNotices" />
         <RouterView />
       </main>
     </section>

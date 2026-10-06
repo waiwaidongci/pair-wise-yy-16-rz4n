@@ -36,6 +36,9 @@ const previewSession = computed<KilnSession>(() => {
     timeOffsetMin: 0,
     points: template.points.map((point, index) => ({ ...point, id: `preview-point-${index}` })),
     actualSamples: [],
+    revision: 0,
+    updatedAt: template.updatedAt,
+    reviews: [],
   }
 })
 

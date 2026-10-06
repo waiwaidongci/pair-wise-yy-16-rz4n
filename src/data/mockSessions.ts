@@ -1,5 +1,6 @@
-import type { CurveTemplate, FiringPoint, KilnSession } from '../types/firing'
+import type { CurveTemplate, FiringPoint, KilnSession, ReviewSnapshot } from '../types/firing'
 import { createActualSamples } from '../utils/curve'
+import { createReviewSnapshot } from '../utils/review'
 
 function points(values: Array<[number, number]>, prefix: string): FiringPoint[] {
   return values.map(([timeMin, tempC], index) => ({
@@ -31,7 +32,7 @@ export const MOCK_TEMPLATES: CurveTemplate[] = [
       [435, 1260],
       [720, 80],
     ]),
-    updatedAt: new Date().toISOString(),
+    updatedAt: new Date('2026-09-15T08:00:00.000Z').toISOString(),
   },
   {
     id: 'template-stoneware',
@@ -50,7 +51,7 @@ export const MOCK_TEMPLATES: CurveTemplate[] = [
       [405, 1285],
       [680, 90],
     ]),
-    updatedAt: new Date().toISOString(),
+    updatedAt: new Date('2026-09-12T08:00:00.000Z').toISOString(),
   },
   {
     id: 'template-crystal',
@@ -70,7 +71,7 @@ export const MOCK_TEMPLATES: CurveTemplate[] = [
       [475, 1080],
       [620, 80],
     ]),
-    updatedAt: new Date().toISOString(),
+    updatedAt: new Date('2026-09-05T08:00:00.000Z').toISOString(),
   },
   {
     id: 'template-raku',
@@ -87,7 +88,7 @@ export const MOCK_TEMPLATES: CurveTemplate[] = [
       [100, 980],
       [115, 120],
     ]),
-    updatedAt: new Date().toISOString(),
+    updatedAt: new Date('2026-08-28T08:00:00.000Z').toISOString(),
   },
 ]
 
@@ -165,10 +166,13 @@ const sessionDefinitions: Array<{
   },
 ]
 
+const FROZEN_MARKER = { clientId: 'seed', clientLabel: '系统初始数据' }
+
 export function createMockSessions(): KilnSession[] {
   return sessionDefinitions.map((definition, index) => {
     const sessionPoints = points(definition.pointValues, definition.id)
-    return {
+    const actualSamples = createActualSamples(sessionPoints, index + 3)
+    const base: KilnSession = {
       id: definition.id,
       name: definition.name,
       kiln: definition.kiln,
@@ -178,7 +182,38 @@ export function createMockSessions(): KilnSession[] {
       status: definition.status,
       timeOffsetMin: definition.offset,
       points: sessionPoints,
-      actualSamples: createActualSamples(sessionPoints, index + 3),
+      actualSamples,
+      revision: 3 + index,
+      updatedAt: new Date(Date.parse(`2026-10-0${2 + index}T00:00:00`)).toISOString(),
+      updatedBy: '系统初始数据',
+      reviews: [],
     }
+
+    if (definition.status === 'completed') {
+      // 已完成窑次：冻结复核与当前数据一致（仍然有效）
+      const review = createReviewSnapshot(base, {
+        ...FROZEN_MARKER,
+        publishedAt: new Date(Date.parse('2026-10-03T02:10:00')).toISOString(),
+      })
+      base.reviews = [review]
+      base.lastReviewId = review.id
+    } else if (definition.status === 'review') {
+      // 待复核窑次：冻结的是发布时的旧曲线，之后曲线已被拖动，复核立即过期
+      const frozenPoints = definition.pointValues.map(([timeMin, tempC], pointIndex) => ({
+        id: `point-${definition.id}-${pointIndex}`,
+        timeMin: timeMin + (pointIndex > 1 && pointIndex < 6 ? 12 : 0),
+        tempC,
+      }))
+      const frozen: KilnSession = { ...base, points: frozenPoints }
+      const review = createReviewSnapshot(frozen, {
+        ...FROZEN_MARKER,
+        publishedAt: new Date(Date.parse('2026-09-29T01:20:00')).toISOString(),
+        note: '首次发布复核，次日调整了升温段时间。',
+      })
+      base.reviews = [review]
+      base.lastReviewId = review.id
+    }
+
+    return base
   })
 }

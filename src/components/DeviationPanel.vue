@@ -4,6 +4,7 @@ import type { DeviationSummary } from '../types/firing'
 defineProps<{
   summary: DeviationSummary
   offsetMin: number
+  readonly?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -15,7 +16,7 @@ const emit = defineEmits<{
   <section class="deviation-panel">
     <div class="deviation-heading">
       <div><strong>记录仪偏差</strong><span>实际温度按统一时间轴与目标曲线插值比较</span></div>
-      <label>
+      <label v-if="!readonly">
         <span>时间偏移</span>
         <input
           type="number"
@@ -23,6 +24,11 @@ const emit = defineEmits<{
           :value="offsetMin"
           @change="emit('updateOffset', Number(($event.target as HTMLInputElement).value))"
         />
+        <small>min</small>
+      </label>
+      <label v-else>
+        <span>冻结时间偏移</span>
+        <input type="number" :value="offsetMin" disabled />
         <small>min</small>
       </label>
     </div>
